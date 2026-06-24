@@ -50,7 +50,7 @@ def save(filename:str) -> str:
         return f"Error saving document: {str(e)}"
 
 tools=[update, save]
-model = ChatOpenAI(model="gpt-4o").bind_tools(tools)
+model = ChatOpenAI(model="gpt-4o-mini").bind_tools(tools)
 def our_agent(state:AgentState) -> AgentState:
     system_prompt=SystemMessage(content=f"""
     You are drafter, a helpful  
@@ -64,3 +64,41 @@ def our_agent(state:AgentState) -> AgentState:
         user_message= HumanMessage(content=user_input)
     all_messages = [system_prompt] + list(state["messages"]) + [user_message]
     response = model.invoke(all_messages)
+    print(f"\n AI: {response.content}")
+    if hasattr(response, "tools_calls") and response.tools_calls:
+        print(f"USING TOOLS")
+    return {"messages": list(state["messages"]) + [user_message, response]}
+
+def should_continue(state: AgentState) -> AgentState:
+    """Determine if we should continue"""
+
+    messages = state["messages"]
+    if not messages:
+        return "continue"
+    #this looks for the most recent tool message
+    for message in reversed(messages):
+        # ... and checks if this is a ToolMessage resulting from save
+
+        if(isinstance(message, ToolMessage) and
+        "saved" in message.content.lower() and
+        "document" in message.content.lower()):
+            return "end" #goes to the end edge which leads to the endpoint
+    return "continue"
+
+
+graph = StateGraph(AgentState)
+
+graph.add_node("agent", our_agent)
+graph.add_node("tools", ToolNode(tools))
+graph.set_entry_point("agent")
+graph.add_conditional_edges(
+    "tools",
+    should_continue,
+    {
+        "continue": "agent",
+        "end": END
+    },
+)
+
+app = graph.compile()
+

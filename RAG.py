@@ -23,7 +23,7 @@ embeddings = OpenAIEmbeddings(
     model="text-embedding-3-small",
 )
 
-pdf_path = "Stock.pdf"
+pdf_path = "AEDC_Report.pdf"
 
 # Safety measure I have out for debugging purposes
 if not os.path.exists(pdf_path):
@@ -74,9 +74,19 @@ retriever = vectorstore.as_retriever(
 @tool()
 def retriever_tool(query: str) -> str:
     """
-    This tool searches and returns the information from the Stock Market Performance document
-    :param query:
-    :return:
+
+    Searches the AEDC company profile and Stock Market performance documents for information.
+
+    This tool queries the vector store to retrieve contextually relevant chunks
+    from the loaded documentation (including AEDC operational scope and services)
+    based on the user's input string.
+
+    Args:
+        query (str): The search query or question provided by the user.
+
+    Returns:
+        str: A formatted string containing the top relevant document chunks,
+             or a notification message if no relevant information is found.
     """
     docs = retriever.invoke(query)
     if not docs:
